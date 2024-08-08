@@ -3,41 +3,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <unistd.h>
-#include <arpa/inet.h>
+
+
+#include "../headders/colors.h"
+#include "../headders/close_conn.h"
 
 
 #define DEFAULT_PORT 1650
 #define BUFFER_SIZE 1024
-#define CLIENT_CLOSE_CON_SYMBOL '#'
 
-
-enum Colors {
-    Red = 31,
-    Green,
-    Yellow,
-    Blue,
-    Magenta,
-    Cyan
-};
-
-
-void set_color(int color) {
-    std::cout << "\033[" << color << "m";
-}
-
-
-void reset_color() { std::cout << "\033[0m"; }
-
-
-bool close_conn(const char* msg) {
-    for(int i = 0; i < strlen(msg); i++) {
-        if(msg[i] == CLIENT_CLOSE_CON_SYMBOL) {
-            return true;
-        }
-    }
-    return false;
-}
 
 
 int main() {
@@ -94,55 +68,41 @@ int main() {
     char buffer[BUFFER_SIZE];
     bool isExit = false;
 
-    while (server > 0) {
-        strcpy(buffer, "=> Server connected!\n");
-        send(server, buffer, BUFFER_SIZE, 0);
 
-        set_color(Yellow);
-        std::cout << "=> Connected to the client #1!" << std::endl;
-        reset_color();
-        set_color(Green);
-        std::cout << "=> Enter '" << CLIENT_CLOSE_CON_SYMBOL << "' to close connection. \n" << std::endl;
-        reset_color();
+    strcpy(buffer, "=> Server connected!\n");
+    send(server, buffer, BUFFER_SIZE, 0);
 
+    set_color(Yellow);
+    std::cout << "=> Connected to the client #1!" << std::endl;
+    reset_color();
+    set_color(Green);
+    std::cout << "=> Enter '" << CLIENT_CLOSE_CON_SYMBOL << "' to close connection. \n" << std::endl;
+    reset_color();
+
+
+    do {
         set_color(Blue);
-        std::cout << "Client: ";
+        std::cout << "\nClient: ";
         recv(server, buffer, BUFFER_SIZE, 0);
         std::cout << buffer << std::endl;
         reset_color();
 
-
-        if(close_conn(buffer)) {
+        if(close_conn_sym(buffer)) {
             isExit = true;
         }
 
-        while(!isExit) {
-            set_color(Yellow);
-            std::cout << "SERVER: ";
-            reset_color();
-            std::cin.getline(buffer, BUFFER_SIZE);
-            send(server, buffer, BUFFER_SIZE, 0);
-
-            if(close_conn(buffer)) {
-                break;
-            }
-
-            set_color(Blue);
-            std::cout << "\nClient: ";
-            recv(server, buffer, BUFFER_SIZE, 0);
-            std::cout << buffer << std::endl;
-            reset_color();
-
-            if(close_conn(buffer)) {
-                break;
-            }
-        }
-
         set_color(Yellow);
-        std::cout << "\n Closed..." << std::endl;
+        std::cout << "SERVER: ";
         reset_color();
-        isExit = false;
-        close(client);
-        exit(0);
-    }
+        std::cin.getline(buffer, BUFFER_SIZE);
+        send(server, buffer, BUFFER_SIZE, 0);
+
+        if(close_conn_sym(buffer)) {
+            isExit = true;
+        }
+    } while(!isExit);
+
+    close_conn(&client);
+
+    return 0;
 }
