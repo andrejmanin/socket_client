@@ -3,106 +3,123 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <thread>
 
 
 #include "../headders/colors.h"
 #include "../headders/close_conn.h"
 
 
-#define DEFAULT_PORT 1650
-#define BUFFER_SIZE 1024
+#define S_PORT 5425
+#define MAX_CLIENTS 5
+
+
+using std::cout;
+using std::endl;
+
+
+void reverce(char* line) {
+    int end = 0;
+    while(line[end] != '\0') {
+        end++;
+    }
+
+    int start = 0;
+    end--; // '\0' symbol
+
+    while(start < end) {
+        char s = line[start];
+        line[start] = line[end];
+        line[end] = s;
+        start++;
+        end--;
+    }
+}
+
+
+void clientConn(int client, int count) {
+    char buffer[BUFSIZ];
+    strcpy(buffer, "=> Server connected!\n");
+    send(client, buffer, BUFSIZ, 0);
+
+    set_color(Yellow);
+    cout << "=> Connection with a client #" << count << " successfully created." << endl;
+    reset_color();
+
+    while(true) {
+        recv(client, buffer, BUFSIZ, 0);
+        if(close_conn_sym(buffer)) {
+            break;
+        }
+        reverce(buffer);
+        send(client, buffer, BUFSIZ, 0);
+    }
+
+    set_color(Yellow);
+    cout << "=> Connection with client #" << count << " was closed." << endl;
+    reset_color();
+    close(client);
+
+}
 
 
 
 int main() {
-    int client, server;
-    int opt = 1;
+    int server;
 
-    struct sockaddr_in server_address;
-
-    client = socket(AF_INET, SOCK_STREAM, 0);
-
-    if(client < 0) {
-        set_color(Red);
-        std::cout << "SERVER ERROR: socket creation error." << std::endl;
-        set_color(Magenta);
-        std::cout << "=> Check port number." << std::endl;
-        reset_color();
-        exit(EXIT_FAILURE);
-    }
-
-    if (setsockopt(client, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
-
-    set_color(Yellow);
-    std::cout << "SERVER: Socket for server was successfully created." << std::endl;
-    reset_color();
-
-    server_address.sin_port = htons(DEFAULT_PORT);
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = htons(INADDR_ANY);
-
-    if(bind(client, reinterpret_cast<sockaddr*>(&server_address), sizeof(server_address)) < 0) {
-        set_color(Red);
-        std::cout << "SERVER ERROR: bind failed." << std::endl;
-        reset_color();
-        exit(EXIT_FAILURE);
-    }
-
-    socklen_t size = sizeof(server_address);
-    set_color(Yellow);
-    std::cout << "SERVER: Listening clients..." << std::endl;
-    reset_color();
-
-    listen(client, 1);
-    server = accept(client, reinterpret_cast<sockaddr*>(&server_address), &size);
-
+    server = socket(AF_INET, SOCK_STREAM, 0);
     if(server < 0) {
         set_color(Red);
-        std::cout << "SERVER: Can't accepting client." << std::endl;
+        cout << "SERVER: Socket isn't created." << std::endl;
         reset_color();
+        exit(EXIT_FAILURE);
     }
 
-    char buffer[BUFFER_SIZE];
-    bool isExit = false;
+    set_color(Yellow);
+    cout << "SERVER: Socket was successfully created." << endl;
+    reset_color();
 
+    sockaddr_in serverAddress{};
 
-    strcpy(buffer, "=> Server connected!\n");
-    send(server, buffer, BUFFER_SIZE, 0);
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(S_PORT);
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
+
+    if(bind(server, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)) == -1) {
+        set_color(Red);
+        cout << "SERVER: In bind function was error." << endl;
+        set_color(Cyan);
+        cout << "| => Chech socket port." << endl;
+        reset_color();
+        exit(EXIT_FAILURE);
+    }
 
     set_color(Yellow);
-    std::cout << "=> Connected to the client #1!" << std::endl;
-    reset_color();
-    set_color(Green);
-    std::cout << "=> Enter '" << CLIENT_CLOSE_CON_SYMBOL << "' to close connection. \n" << std::endl;
+    cout << "SERVER: Socket was successfully binded." << endl;
     reset_color();
 
+    listen(server, MAX_CLIENTS);
+    socklen_t sAddrLen = sizeof(serverAddress);
 
-    do {
-        set_color(Blue);
-        std::cout << "\nClient: ";
-        recv(server, buffer, BUFFER_SIZE, 0);
-        std::cout << buffer << std::endl;
+    int count = 1;
+    while(count <= 5) {
+        set_color(Green);
+        cout << "SERVER: Listening clients..." << endl;
         reset_color();
 
-        if(close_conn_sym(buffer)) {
-            isExit = true;
+        int client = accept(server, reinterpret_cast<sockaddr*>(&serverAddress), &sAddrLen);
+        if(client < 0) {
+            set_color(Red);
+            cout << "SERVER: Can't accept client connection." << endl;
+            reset_color();
+            continue;
         }
-
-        set_color(Yellow);
-        std::cout << "SERVER: ";
-        reset_color();
-        std::cin.getline(buffer, BUFFER_SIZE);
-        send(server, buffer, BUFFER_SIZE, 0);
-
-        if(close_conn_sym(buffer)) {
-            isExit = true;
+        if(client > 0) {
+            std::thread conn(&clientConn, client, count);
+            conn.detach();
         }
-    } while(!isExit);
-
-    close_conn(&client);
-
+        count++;
+    }
+    close(server);
     return 0;
 }

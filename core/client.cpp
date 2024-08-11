@@ -8,17 +8,16 @@
 #include "../headders/colors.h"
 #include "../headders/close_conn.h"
 
+
+
 #define SERVER_CLOSE_CON_SYMBOL '#'
-#define DEFAULT_PORT 1650
-#define BUFFER_SIZE 1024
+#define DEFAULT_PORT 5425
 #define SERVER_IP "127.0.0.1"
 
 
 int main() {
-    int client;
-    struct sockaddr_in server_address;
+    int client = socket(AF_INET, SOCK_STREAM, 0);
 
-    client = socket(AF_INET, SOCK_STREAM, 0);
     if(client < 0) {
         set_color(Red);
         std::cout << "CLIENT ERROR: establishing socket error." << std::endl;
@@ -26,6 +25,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    sockaddr_in server_address{};
 
     server_address.sin_port = htons(DEFAULT_PORT);
     server_address.sin_family = AF_INET;
@@ -41,10 +41,10 @@ int main() {
         reset_color();
     }
 
-    char buff[BUFFER_SIZE];
+    char buff[BUFSIZ];
     set_color(Cyan);
     std::cout << "Waiting for server confirmation..." << std::endl;
-    recv(client, buff, BUFFER_SIZE, 0);
+    recv(client, buff, BUFSIZ, 0);
     set_color(Magenta);
     std::cout << "=> Connection established." << std::endl;
     set_color(Green);
@@ -57,15 +57,15 @@ int main() {
         set_color(Cyan);
         std::cout << "CLIENT: ";
         reset_color();
-        std::cin.getline(buff, BUFFER_SIZE);
-        send(client, buff, BUFFER_SIZE, 0);
+        std::cin.getline(buff, BUFSIZ);
+        send(client, buff, BUFSIZ, 0);
         if(close_conn_sym(buff)) {
             isEnd = true;
         }
 
         set_color(Yellow);
         std::cout << "SERVER: ";
-        recv(client, buff, BUFFER_SIZE, 0);
+        recv(client, buff, BUFSIZ, 0);
         std::cout << buff << std::endl;
         reset_color();
 
