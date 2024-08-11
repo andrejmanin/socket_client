@@ -3,49 +3,21 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <unistd.h>
 #include <arpa/inet.h>
+
+#include "../headders/colors.h"
+#include "../headders/close_conn.h"
+
 
 
 #define SERVER_CLOSE_CON_SYMBOL '#'
-#define DEFAULT_PORT 1650
-#define BUFFER_SIZE 1024
+#define DEFAULT_PORT 5425
 #define SERVER_IP "127.0.0.1"
 
 
-enum Colors {
-    Red = 31,
-    Green,
-    Yellow,
-    Blue,
-    Magenta,
-    Cyan
-};
-
-
-void set_color(int color) {
-    std::cout << "\033[" << color << "m";
-}
-
-
-void reset_color() { std::cout << "\033[0m"; }
-
-
-bool close_conn(const char* msg) {
-    for(int i = 0; i < strlen(msg); i++) {
-        if(msg[i] == SERVER_CLOSE_CON_SYMBOL) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
 int main() {
-    int client;
-    struct sockaddr_in server_address;
+    int client = socket(AF_INET, SOCK_STREAM, 0);
 
-    client = socket(AF_INET, SOCK_STREAM, 0);
     if(client < 0) {
         set_color(Red);
         std::cout << "CLIENT ERROR: establishing socket error." << std::endl;
@@ -53,6 +25,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    sockaddr_in server_address{};
 
     server_address.sin_port = htons(DEFAULT_PORT);
     server_address.sin_family = AF_INET;
@@ -68,10 +41,10 @@ int main() {
         reset_color();
     }
 
-    char buff[BUFFER_SIZE];
+    char buff[BUFSIZ];
     set_color(Cyan);
     std::cout << "Waiting for server confirmation..." << std::endl;
-    recv(client, buff, BUFFER_SIZE, 0);
+    recv(client, buff, BUFSIZ, 0);
     set_color(Magenta);
     std::cout << "=> Connection established." << std::endl;
     set_color(Green);
@@ -79,32 +52,30 @@ int main() {
     reset_color();
 
 
-    while(true) {
+    bool isEnd = false;
+    while(!isEnd) {
         set_color(Cyan);
         std::cout << "CLIENT: ";
         reset_color();
-        std::cin.getline(buff, BUFFER_SIZE);
-        send(client, buff, BUFFER_SIZE, 0);
-        if(close_conn(buff)) {
-            break;
+        std::cin.getline(buff, BUFSIZ);
+        send(client, buff, BUFSIZ, 0);
+        if(close_conn_sym(buff)) {
+            isEnd = true;
         }
 
         set_color(Yellow);
         std::cout << "SERVER: ";
-        recv(client, buff, BUFFER_SIZE, 0);
+        recv(client, buff, BUFSIZ, 0);
         std::cout << buff << std::endl;
         reset_color();
 
-        if(close_conn(buff)) {
-            break;
+        if(close_conn_sym(buff)) {
+            isEnd = true;
         }
         std::cout << std::endl;
     }
 
-    close(client);
-    set_color(Yellow);
-    std::cout << "\n Closed..." << std::endl;
-    reset_color();
+    close_conn(&client);
 
     return 0;
 }
